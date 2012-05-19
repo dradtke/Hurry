@@ -1,5 +1,10 @@
+{-
+ - Entry point for testing Hurry.
+ -}
+
 module Main where
 
+import Allegro.Event
 import Allegro.System
 
 main :: IO ()

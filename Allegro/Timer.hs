@@ -15,11 +15,11 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Path
-( Path
+module Allegro.Timer
+( Timer
 ) where
 
 import Foreign.Ptr
 
-data PathStruct
-type Path = Ptr (PathStruct)
+data TimerStruct
+type Timer = Ptr (TimerStruct)

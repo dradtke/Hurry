@@ -15,11 +15,11 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Path
-( Path
+module Allegro.Joystick
+( Joystick
 ) where
 
 import Foreign.Ptr
 
-data PathStruct
-type Path = Ptr (PathStruct)
+data JoystickStruct
+type Joystick = Ptr (JoystickStruct)

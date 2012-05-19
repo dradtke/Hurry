@@ -15,11 +15,11 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Path
-( Path
+module Allegro.Mouse
+( Mouse
 ) where
 
 import Foreign.Ptr
 
-data PathStruct
-type Path = Ptr (PathStruct)
+data MouseStruct
+type Mouse = Ptr (MouseStruct)

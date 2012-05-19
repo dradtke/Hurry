@@ -15,11 +15,11 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Path
-( Path
+module Allegro.Display
+( Display
 ) where
 
 import Foreign.Ptr
 
-data PathStruct
-type Path = Ptr (PathStruct)
+data DisplayStruct
+type Display = Ptr (DisplayStruct)

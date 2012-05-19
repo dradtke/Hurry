@@ -15,11 +15,14 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Path
-( Path
+module Allegro.Keyboard
+( Keyboard
+, Key
 ) where
 
 import Foreign.Ptr
 
-data PathStruct
-type Path = Ptr (PathStruct)
+data KeyboardStruct
+type Keyboard = Ptr (KeyboardStruct)
+
+type Key = Int
