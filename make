@@ -1,6 +1,6 @@
 #!/bin/bash
 if [[ $1 = "clean" ]]; then
-	rm -f *.o Allegro/*.o c/*.o *.hi Main
+	rm -f *.{o,hi} Allegro/*.{o,hi} c/*.o Main
 	echo "  Clean as a jiffy, suh."
 	exit 0
 fi
