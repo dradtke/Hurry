@@ -18,7 +18,11 @@
 module Allegro.Event
 ( EventSource
 , UserEventDescriptor
+, EventQueue
 , Event(..)
+, createEventQueue
+, destroyEventQueue
+, registerEventSource
 ) where
 
 #include <allegro5/allegro.h>
@@ -38,6 +42,9 @@ type EventSource = Ptr (EventSourceStruct)
 
 data UserEventDescriptorStruct
 type UserEventDescriptor = Ptr (UserEventDescriptorStruct)
+
+data EventQueueStruct
+type EventQueue = Ptr (EventQueueStruct)
 
 data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTimestamp :: Double }
            | JoystickAxisEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double
@@ -101,6 +108,27 @@ instance Storable Event where
 		typ <- #{peek ALLEGRO_EVENT, any.type} p :: IO (Word)
 		parseEvent typ p
 	poke _ _ = undefined
+
+
+createEventQueue :: IO (EventQueue)
+createEventQueue = alCreateEventQueue
+foreign import ccall "allegro5/allegro.h al_create_event_queue"
+	alCreateEventQueue :: IO (EventQueue)
+
+destroyEventQueue :: EventQueue -> IO ()
+destroyEventQueue = alDestroyEventQueue
+foreign import ccall "allegro5/allegro.h al_destroy_event_queue"
+	alDestroyEventQueue :: EventQueue -> IO ()
+
+registerEventSource :: EventQueue -> EventSource -> IO ()
+registerEventSource = alRegisterEventSource
+foreign import ccall "allegro5/allegro.h al_register_event_source"
+	alRegisterEventSource :: EventQueue -> EventSource -> IO ()
+
+unregisterEventSource :: EventQueue -> EventSource -> IO ()
+unregisterEventSource = alUnregisterEventSource
+foreign import ccall "allegro5/allegro.h al_unregister_event_source"
+	alUnregisterEventSource :: EventQueue -> EventSource -> IO ()
 
 parseEvent :: Word -> Ptr Event -> IO (Event)
 parseEvent typ p
