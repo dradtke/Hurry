@@ -30,12 +30,13 @@ module Allegro.System
 , getSystemConfig
 ) where
 
+import Allegro.Config
+import Allegro.Path
+
 import Control.Monad
 import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Marshal.Utils
-import Allegro.Config
-import Allegro.Path
 
 initialize :: IO (Bool)
 initialize = liftM toBool alInit

@@ -33,6 +33,9 @@ import Allegro.Display
 import Allegro.Joystick
 import Allegro.Timer
 
+import Control.Monad
+import Foreign.C.Types
+import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
 import Data.Word
@@ -46,6 +49,7 @@ type UserEventDescriptor = Ptr (UserEventDescriptorStruct)
 data EventQueueStruct
 type EventQueue = Ptr (EventQueueStruct)
 
+type EventPtr = Ptr (Event)
 data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTimestamp :: Double }
            | JoystickAxisEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double
                                , eventJoystickId :: Joystick, eventJoystickAxis :: Int
@@ -129,6 +133,17 @@ unregisterEventSource :: EventQueue -> EventSource -> IO ()
 unregisterEventSource = alUnregisterEventSource
 foreign import ccall "allegro5/allegro.h al_unregister_event_source"
 	alUnregisterEventSource :: EventQueue -> EventSource -> IO ()
+
+isEventQueueEmpty :: EventQueue -> IO (Bool)
+isEventQueueEmpty queue = liftM toBool $ alIsEventQueueEmpty queue
+foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
+	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
+
+-- TODO: what's the best way to do this? Might need to use ForeignPtr over Ptr
+getNextEvent :: EventQueue -> IO (Maybe Event)
+getNextEvent = undefined
+foreign import ccall "allegro5/allegro.h al_get_next_event"
+	alGetNextEvent :: EventQueue -> EventPtr -> IO (CInt)
 
 parseEvent :: Word -> Ptr Event -> IO (Event)
 parseEvent typ p
