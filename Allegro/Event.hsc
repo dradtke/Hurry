@@ -35,6 +35,7 @@ import Allegro.Timer
 
 import Control.Monad
 import Foreign.C.Types
+import Foreign.Marshal.Alloc
 import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
@@ -139,11 +140,15 @@ isEventQueueEmpty queue = liftM toBool $ alIsEventQueueEmpty queue
 foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
 	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
 
--- TODO: what's the best way to do this? Might need to use ForeignPtr over Ptr
+-- TODO: this might need THOROUGH testing
 getNextEvent :: EventQueue -> IO (Maybe Event)
-getNextEvent = undefined
+getNextEvent queue = do
+	p <- malloc :: IO (Ptr (Event))
+	event <- peek p
+	success <- liftM toBool $ alGetNextEvent queue p
+	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
-	alGetNextEvent :: EventQueue -> EventPtr -> IO (CInt)
+	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
 parseEvent :: Word -> Ptr Event -> IO (Event)
 parseEvent typ p
