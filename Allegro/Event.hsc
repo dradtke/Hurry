@@ -23,6 +23,11 @@ module Allegro.Event
 , createEventQueue
 , destroyEventQueue
 , registerEventSource
+, unregisterEventSource
+, isEventQueueEmpty
+, getNextEvent
+, mallocEvent
+, freeEvent
 ) where
 
 #include <allegro5/allegro.h>
@@ -140,15 +145,19 @@ isEventQueueEmpty queue = liftM toBool $ alIsEventQueueEmpty queue
 foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
 	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
 
--- TODO: this might need THOROUGH testing
-getNextEvent :: EventQueue -> IO (Maybe Event)
-getNextEvent queue = do
-	p <- malloc :: IO (Ptr (Event))
-	event <- peek p
+-- TODO: this might need some testing
+getNextEvent :: EventQueue -> Ptr (Event) -> IO (Maybe Event)
+getNextEvent queue p = do
 	success <- liftM toBool $ alGetNextEvent queue p
-	return $ if success then Just event else Nothing
+	if success then liftM Just (peek p) else return Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
 	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
+
+mallocEvent :: IO (Ptr (Event))
+mallocEvent = malloc :: IO (Ptr (Event))
+
+freeEvent :: Ptr (Event) -> IO ()
+freeEvent p = free p
 
 parseEvent :: Word -> Ptr Event -> IO (Event)
 parseEvent typ p
