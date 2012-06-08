@@ -40,6 +40,7 @@ import Allegro.Timer
 
 import Control.Monad
 import Foreign.C.Types
+import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Utils
 import Foreign.Ptr
@@ -146,10 +147,12 @@ foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
 	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
 
 -- TODO: this might need some testing
-getNextEvent :: EventQueue -> Ptr (Event) -> IO (Maybe Event)
-getNextEvent queue p = do
-	success <- liftM toBool $ alGetNextEvent queue p
-	if success then liftM Just (peek p) else return Nothing
+getNextEvent :: EventQueue -> IO (Maybe Event)
+getNextEvent queue = alloca f
+	where f p = do
+		success <- liftM toBool $ alGetNextEvent queue p
+		event <- peek p :: IO (Event)
+		return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
 	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
