@@ -15,11 +15,16 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Display
-( Display
+module Allegro.Graphics
+( Bitmap
 ) where
 
+import Control.Monad
+import Foreign.C.Types
+import Foreign.Marshal.Alloc
+import Foreign.Marshal.Utils
 import Foreign.Ptr
+import Foreign.Storable
 
-data DisplayStruct
-type Display = Ptr (DisplayStruct)
+data BitmapStruct
+type Bitmap = Ptr (BitmapStruct)

@@ -26,8 +26,13 @@ module Allegro.Event
 , unregisterEventSource
 , isEventQueueEmpty
 , getNextEvent
-, mallocEvent
-, freeEvent
+, peekNextEvent
+, dropNextEvent
+, flushEventQueue
+, waitForEvent
+--, waitForEventTimed
+, initUserEventSource
+, destroyUserEventSource
 ) where
 
 #include <allegro5/allegro.h>
@@ -146,21 +151,70 @@ isEventQueueEmpty queue = liftM toBool $ alIsEventQueueEmpty queue
 foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
 	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
 
--- TODO: this might need some testing
+-- TODO: test these event methods
 getNextEvent :: EventQueue -> IO (Maybe Event)
-getNextEvent queue = alloca f
-	where f p = do
-		success <- liftM toBool $ alGetNextEvent queue p
-		event <- peek p :: IO (Event)
-		return $ if success then Just event else Nothing
+getNextEvent queue = alloca $ \p -> do
+	success <- liftM toBool $ alGetNextEvent queue p
+	event <- peek p :: IO (Event)
+	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
 	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
-mallocEvent :: IO (Ptr (Event))
-mallocEvent = malloc :: IO (Ptr (Event))
+peekNextEvent :: EventQueue -> IO (Maybe Event)
+peekNextEvent queue = alloca $ \p -> do
+	success <- liftM toBool $ alPeekNextEvent queue p
+	event <- peek p :: IO (Event)
+	return $ if success then Just event else Nothing
+foreign import ccall "allegro5/allegro.h al_peek_next_event"
+	alPeekNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
-freeEvent :: Ptr (Event) -> IO ()
-freeEvent p = free p
+dropNextEvent :: EventQueue -> IO (Bool)
+dropNextEvent queue = liftM toBool $ alDropNextEvent queue
+foreign import ccall "allegro5/allegro.h al_drop_next_event"
+	alDropNextEvent :: EventQueue -> IO (CInt)
+
+flushEventQueue :: EventQueue -> IO ()
+flushEventQueue = alFlushEventQueue
+foreign import ccall "allegro5/allegro.h al_flush_event_queue"
+	alFlushEventQueue :: EventQueue -> IO ()
+
+waitForEvent :: EventQueue -> Bool -> IO (Maybe Event)
+waitForEvent queue ret = if ret
+	then liftM Just $ alloca $ \p -> do
+		alWaitForEvent queue p
+		event <- peek p :: IO (Event)
+		return event
+	else alWaitForEvent queue nullPtr >>= (\_ -> return Nothing)
+foreign import ccall "allegro5/allegro.h al_wait_for_event"
+	alWaitForEvent :: EventQueue -> Ptr (Event) -> IO ()
+
+-- This shit definitely needs to be fixed...
+--
+-- waitForEventTimed :: EventQueue -> Bool -> Float -> IO (Maybe Event)
+-- waitForEventTimed queue ret secs = if ret
+-- 	then liftM Just $ alloca f
+-- 	else alWaitForEventTimed queue nullPtr secs >>= (\_ -> return Nothing)
+-- 	where f :: Ptr (Event) -> IO (Event)
+-- 	      f p = do
+-- 		alWaitForEventTimed queue p secs
+-- 		event <- peek p :: IO (Event)
+-- 		return event
+-- foreign import ccall "allegro5/allegro.h al_wait_for_event_timed"
+-- 	alWaitForEventTimed :: EventQueue -> Ptr (Event) -> CFloat -> IO (CInt)
+
+-- TODO: other event waiting methods
+
+initUserEventSource :: EventSource -> IO ()
+initUserEventSource = alInitUserEventSource
+foreign import ccall "allegro5/allegro.h al_init_user_event_source"
+	alInitUserEventSource :: EventSource -> IO ()
+
+destroyUserEventSource :: EventSource -> IO ()
+destroyUserEventSource = alDestroyUserEventSource
+foreign import ccall "allegro5/allegro.h al_destroy_user_event_source"
+	alDestroyUserEventSource :: EventSource -> IO ()
+
+-- TODO: get/set event source data, unref user event
 
 parseEvent :: Word -> Ptr Event -> IO (Event)
 parseEvent typ p
@@ -264,3 +318,10 @@ parseUserEvent typ p = do
 	eventData4 <- #{peek ALLEGRO_EVENT, user.data4} p :: IO (Ptr ())
 	let eventType = typ
 	return UserEvent {..}
+
+-- Get event sources
+
+getDisplayEventSource :: Display -> IO (EventSource)
+getDisplayEventSource = alGetDisplayEventSource
+foreign import ccall "allegro5/allegro.h al_get_display_event_source"
+	alGetDisplayEventSource :: Display -> IO (EventSource)
