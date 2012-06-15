@@ -50,6 +50,11 @@ newtype DisplayFlag = DisplayFlag { unDisplayFlag :: CInt }
  , generateExposeEvents = ALLEGRO_GENERATE_EXPOSE_EVENTS
  }
 
+-- ???: is there a way to do this that doesn't require this duplication?
+allDisplayFlags :: [DisplayFlag]
+allDisplayFlags = [windowed, fullscreen, fullscreenWindow, resizable, opengl, opengl3
+                  , openglForwardCompatible, noframe, generateExposeEvents]
+
 newtype DisplayOptionImportance = DisplayOptionImportance { unDisplayOptionImportance :: CInt }
 #{enum DisplayOptionImportance, DisplayOptionImportance
  , require = ALLEGRO_REQUIRE
@@ -102,9 +107,10 @@ destroyDisplay = alDestroyDisplay
 foreign import ccall "allegro5/allegro.h al_destroy_display"
 	alDestroyDisplay :: Display -> IO ()
 
--- TODO: create a datatype for this
-getNewDisplayFlags :: IO (Int)
-getNewDisplayFlags = liftM fromEnum alGetNewDisplayFlags
+getNewDisplayFlags :: IO ([DisplayFlag])
+getNewDisplayFlags = do
+	flags <- alGetNewDisplayFlags
+	return $ filter (\x -> toBool $ (.&.) flags $ unDisplayFlag x) allDisplayFlags
 foreign import ccall "allegro5/allegro.h al_get_new_display_flags"
 	alGetNewDisplayFlags :: IO (CInt)
 
