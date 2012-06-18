@@ -16,13 +16,13 @@
  -}
 
 module Allegro.System
-( initialize
+( initAllegro
 , installSystem
 , uninstallSystem
 , isSystemInstalled
 , getAllegroVersion
 , getStandardPath
-, setExeName
+-- , setExeName
 , setAppName
 , setOrgName
 , getAppName
@@ -38,8 +38,10 @@ import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Marshal.Utils
 
-initialize :: IO (Bool)
-initialize = liftM toBool alInit
+initAllegro :: IO ()
+initAllegro = liftM toBool alInit >>= \success -> if success
+	then return ()
+	else error $ "Failed to initialize Allegro!"
 foreign import ccall "c/al-wrapper.h wal_init"
 	alInit :: IO (CInt)
 
@@ -70,10 +72,10 @@ foreign import ccall "allegro5/allegro.h al_get_standard_path"
 	alGetStandardPath :: CInt -> IO (Path)
 
 -- TODO: make sure this string doesn't get randomly destroyed
-setExeName :: String -> IO ()
-setExeName name = withCString name alSetExeName
-foreign import ccall "allegro5/allegro.h al_set_exe_name"
-	alSetExeName :: CString -> IO ()
+-- setExeName :: String -> IO ()
+-- setExeName name = withCString name alSetExeName
+-- foreign import ccall "allegro5/allegro.h al_set_exe_name"
+-- 	alSetExeName :: CString -> IO ()
 
 -- TODO: make sure this string doesn't get randomly destroyed
 setAppName :: String -> IO ()

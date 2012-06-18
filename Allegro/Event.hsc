@@ -33,6 +33,7 @@ module Allegro.Event
 --, waitForEventTimed
 , initUserEventSource
 , destroyUserEventSource
+, getDisplayEventSource
 ) where
 
 #include <allegro5/allegro.h>

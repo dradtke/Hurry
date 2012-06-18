@@ -15,9 +15,7 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
-module Allegro.Display
-( Display
-) where
+module Allegro.Display where
 
 #include <allegro5/allegro.h>
 

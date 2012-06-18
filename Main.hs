@@ -4,12 +4,21 @@
 
 module Main where
 
+import Allegro.Display
 import Allegro.Event
 import Allegro.System
+import Control.Monad.State
+
+data Game = Game { {- put global variables here -} }
 
 main :: IO ()
 main = do
-	setAppName "SS Allegro"
-	initialize
-	name <- getAppName
-	putStrLn $ "app name: " ++ name
+	initAllegro
+	queue <- createEventQueue
+	display <- createDisplay 640 480
+	getDisplayEventSource display >>= registerEventSource queue
+	let game = Game in loop game
+	return ()
+
+loop :: State Game -> IO ()
+loop state = return ()
