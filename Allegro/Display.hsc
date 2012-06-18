@@ -178,7 +178,12 @@ getBackbuffer = alGetBackbuffer
 foreign import ccall "allegro5/allegro.h al_get_backbuffer"
 	alGetBackbuffer :: Display -> IO (Bitmap)
 
--- TODO: getDisplayFlags
+getDisplayFlags :: Display -> IO ([DisplayFlag])
+getDisplayFlags d = do
+	flags <- alGetDisplayFlags d
+	return $ filter (\x -> toBool $ (.&.) (unDisplayFlag x) flags) allDisplayFlags
+foreign import ccall "allegro5/allegro.h al_get_display_flags"
+	alGetDisplayFlags :: Display -> IO (CInt)
 
 getDisplayHeight :: Display -> IO (Int)
 getDisplayHeight d = liftM fromEnum $ alGetDisplayHeight d
@@ -219,7 +224,10 @@ setDisplayIcon = alSetDisplayIcon
 foreign import ccall "allegro5/allegro.h al_set_display_icon"
 	alSetDisplayIcon :: Display -> Bitmap -> IO ()
 
--- TODO: getDisplayOption
+getDisplayOption :: Display -> DisplayOption -> IO (Int)
+getDisplayOption d option = liftM fromEnum $ alGetDisplayOption d option
+foreign import ccall "allegro5/allegro.h al_get_display_option"
+	alGetDisplayOption :: Display -> DisplayOption -> IO (CInt)
 
 setWindowPosition :: Display -> Int -> Int -> IO ()
 setWindowPosition d x y = alSetWindowPosition d (toEnum x) (toEnum y)
@@ -231,7 +239,11 @@ setWindowTitle d title = withCString title $ alSetWindowTitle d
 foreign import ccall "allegro5/allegro.h al_set_window_title"
 	alSetWindowTitle :: Display -> CString -> IO ()
 
--- TODO: toggleDisplayFlag
+toggleDisplayFlag :: Display -> DisplayFlag -> Bool -> IO (Bool)
+toggleDisplayFlag d flag onoff = liftM toBool $ alToggleDisplayFlag d flag onoff'
+	where onoff' = fromBool onoff :: CInt
+foreign import ccall "allegro5/allegro.h al_toggle_display_flag"
+	alToggleDisplayFlag :: Display -> DisplayFlag -> CInt -> IO (CInt)
 
 updateDisplayRegion :: Int -> Int -> Int -> Int -> IO ()
 updateDisplayRegion x y w h =
