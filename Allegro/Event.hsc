@@ -15,6 +15,8 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Allegro.Event
 ( EventSource
 , UserEventDescriptor
@@ -45,6 +47,7 @@ import Allegro.Joystick
 import Allegro.Timer
 
 import Control.Monad
+import Data.Data
 import Foreign.C.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
@@ -53,10 +56,10 @@ import Foreign.Ptr
 import Foreign.Storable
 import Data.Word
 
-data EventSourceStruct
+data EventSourceStruct deriving (Typeable)
 type EventSource = Ptr (EventSourceStruct)
 
-data UserEventDescriptorStruct
+data UserEventDescriptorStruct deriving (Typeable)
 type UserEventDescriptor = Ptr (UserEventDescriptorStruct)
 
 data EventQueueStruct
@@ -73,50 +76,51 @@ data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTime
                                    , eventJoystickId :: Joystick, eventJoystickButton :: Int }
            | JoystickConfigurationEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double }
            | KeyDownEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
-                          , eventKeycode :: Key, eventDisplay :: Display }
+                          , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
            | KeyUpEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
-                        , eventKeycode :: Key, eventDisplay :: Display }
+                        , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
            | KeyCharEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
                           , eventKeycode :: Key, eventUnichar :: Char, eventModifiers :: Word
-                          , eventRepeat :: Bool, eventDisplay :: Display }
+                          , eventRepeat :: Bool, eventDisplay :: Ptr (DisplayStruct) }
            | MouseAxesEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                             , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
                             , eventDX :: Int, eventDY :: Int, eventDZ :: Int, eventDW :: Int
-                            , eventDisplay :: Display }
+                            , eventDisplay :: Ptr (DisplayStruct) }
            | MouseDownEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                             , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                            , eventButton :: Int, eventDisplay :: Display }
+                            , eventButton :: Int, eventDisplay :: Ptr (DisplayStruct) }
            | MouseUpEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                           , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                          , eventButton :: Int, eventDisplay :: Display }
+                          , eventButton :: Int, eventDisplay :: Ptr (DisplayStruct) }
            | MouseEnterDisplayEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                                     , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                                    , eventDisplay :: Display }
+                                    , eventDisplay :: Ptr (DisplayStruct) }
            | MouseLeaveDisplayEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                                     , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                                    , eventDisplay :: Display }
+                                    , eventDisplay :: Ptr (DisplayStruct) }
            | MouseWarpedEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                               , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
                               , eventDX :: Int, eventDY :: Int, eventDZ :: Int, eventDW :: Int
-                              , eventDisplay :: Display }
+                              , eventDisplay :: Ptr (DisplayStruct) }
            | TimerEvent { eventTimerSource :: Timer, eventTimestamp :: Double
                         , eventTimerCount :: Word64 }
-           | DisplayExposeEvent { eventDisplaySource :: Display, eventTimestamp :: Double
+           | DisplayExposeEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
                                 , eventX :: Int, eventY :: Int, eventDisplayWidth :: Int
                                 , eventDisplayHeight :: Int }
-           | DisplayResizeEvent { eventDisplaySource :: Display, eventTimestamp :: Double
+           | DisplayResizeEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
                                 , eventX :: Int, eventY :: Int, eventDisplayWidth :: Int
                                 , eventDisplayHeight :: Int }
-           | DisplayCloseEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
-           | DisplayLostEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
-           | DisplayFoundEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
-           | DisplaySwitchInEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
-           | DisplaySwitchOutEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
-           | DisplayOrientationEvent { eventDisplaySource :: Display, eventTimestamp :: Double
+           | DisplayCloseEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
+           | DisplayLostEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
+           | DisplayFoundEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
+           | DisplaySwitchInEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
+           | DisplaySwitchOutEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
+           | DisplayOrientationEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
                                      , eventDisplayOrientation :: Int }
            | UserEvent { eventType :: Word, eventSource :: EventSource
                       , eventTimestamp :: Double, eventData1 :: Ptr (), eventData2 :: Ptr ()
                       , eventData3 :: Ptr (), eventData4 :: Ptr () }
+	   deriving (Typeable, Data)
 
 instance Storable Event where
 	sizeOf _ = #{size ALLEGRO_EVENT}
@@ -246,7 +250,7 @@ parseKeyboardEvent :: Word -> Ptr Event -> IO (Event)
 parseKeyboardEvent typ p = do
 	eventKeyboardSource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Keyboard)
 	eventTimestamp <- #{peek ALLEGRO_EVENT, any.timestamp} p :: IO (Double)
-	eventDisplay <- #{peek ALLEGRO_EVENT, keyboard.display} p :: IO (Display)
+	eventDisplay <- #{peek ALLEGRO_EVENT, keyboard.display} p :: IO (Ptr (DisplayStruct))
 	eventKeycode <- #{peek ALLEGRO_EVENT, keyboard.keycode} p :: IO (Key)
 	eventUnichar <- #{peek ALLEGRO_EVENT, keyboard.unichar} p :: IO (Char)
 	eventModifiers <- #{peek ALLEGRO_EVENT, keyboard.modifiers} p :: IO (Word)
@@ -270,7 +274,7 @@ parseMouseEvent typ p = do
 	eventDZ <- #{peek ALLEGRO_EVENT, mouse.dz} p :: IO (Int)
 	eventDW <- #{peek ALLEGRO_EVENT, mouse.dw} p :: IO (Int)
 	eventButton <- #{peek ALLEGRO_EVENT, mouse.button} p :: IO (Int)
-	eventDisplay <- #{peek ALLEGRO_EVENT, mouse.display} p :: IO (Display)
+	eventDisplay <- #{peek ALLEGRO_EVENT, mouse.display} p :: IO (Ptr (DisplayStruct))
 	return $ case typ of
 		20 -> MouseAxesEvent {..}
 		21 -> MouseDownEvent {..}
@@ -291,7 +295,7 @@ parseTimerEvent typ p = do
 
 parseDisplayEvent :: Word -> Ptr Event -> IO (Event)
 parseDisplayEvent typ p = do
-	eventDisplaySource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Display)
+	eventDisplaySource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Ptr (DisplayStruct))
 	eventTimestamp <- #{peek ALLEGRO_EVENT, any.timestamp} p :: IO (Double)
 	eventX <- #{peek ALLEGRO_EVENT, display.x} p :: IO (Int)
 	eventY <- #{peek ALLEGRO_EVENT, display.y} p :: IO (Int)
@@ -323,6 +327,6 @@ parseUserEvent typ p = do
 -- Get event sources
 
 getDisplayEventSource :: Display -> IO (EventSource)
-getDisplayEventSource = alGetDisplayEventSource
+getDisplayEventSource d = withForeignPtr d alGetDisplayEventSource
 foreign import ccall "allegro5/allegro.h al_get_display_event_source"
-	alGetDisplayEventSource :: Display -> IO (EventSource)
+	alGetDisplayEventSource :: Ptr (DisplayStruct) -> IO (EventSource)

@@ -15,11 +15,14 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Allegro.Joystick
 ( Joystick
 ) where
 
+import Data.Data
 import Foreign.Ptr
 
-data JoystickStruct
+data JoystickStruct deriving (Typeable)
 type Joystick = Ptr (JoystickStruct)

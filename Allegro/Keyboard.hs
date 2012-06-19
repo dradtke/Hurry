@@ -15,14 +15,17 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Allegro.Keyboard
 ( Keyboard
 , Key
 ) where
 
+import Data.Data
 import Foreign.Ptr
 
-data KeyboardStruct
+data KeyboardStruct deriving (Typeable)
 type Keyboard = Ptr (KeyboardStruct)
 
 type Key = Int

@@ -15,11 +15,14 @@
  - For more information, visit http://www.gnu.org/copyleft
  -}
 
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Allegro.Mouse
 ( Mouse
 ) where
 
+import Data.Data
 import Foreign.Ptr
 
-data MouseStruct
+data MouseStruct deriving (Typeable)
 type Mouse = Ptr (MouseStruct)
