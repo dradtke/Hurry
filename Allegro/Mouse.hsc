@@ -22,6 +22,8 @@ module Allegro.Mouse
 , installMouse
 , isMouseInstalled
 , uninstallMouse
+, getMouseNumAxes
+, getMouseNumButtons
 ) where
 
 #include <allegro5/allegro.h>
@@ -52,3 +54,13 @@ uninstallMouse :: IO ()
 uninstallMouse = alUninstallMouse
 foreign import ccall "allegro5/allegro.h al_uninstall_mouse"
 	alUninstallMouse :: IO ()
+
+getMouseNumAxes :: IO (Int)
+getMouseNumAxes = liftM fromEnum alGetMouseNumAxes
+foreign import ccall "allegro5/allegro.h al_get_mouse_num_axes"
+	alGetMouseNumAxes :: IO (CInt)
+
+getMouseNumButtons :: IO (Int)
+getMouseNumButtons = liftM fromEnum alGetMouseNumButtons
+foreign import ccall "allegro5/allegro.h al_get_mouse_num_buttons"
+	alGetMouseNumButtons :: IO (CInt)
