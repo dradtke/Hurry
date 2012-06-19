@@ -101,8 +101,8 @@ newtype DisplayOption = DisplayOption { unDisplayOption :: CInt }
 
 createDisplay :: Int -> Int -> IO (Display)
 createDisplay w h = do
-	p <- alCreateDisplay (toEnum w) (toEnum h)
-	newForeignPtr alFinalizeDisplay p
+	d <- alCreateDisplay (toEnum w) (toEnum h)
+	newForeignPtr alFinalizeDisplay d
 foreign import ccall "allegro5/allegro.h al_create_display"
 	alCreateDisplay :: CInt -> CInt -> IO (Ptr (DisplayStruct))
 foreign import ccall "allegro5/allegro.h &al_destroy_display"

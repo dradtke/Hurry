@@ -36,6 +36,7 @@ module Allegro.Event
 , initUserEventSource
 , destroyUserEventSource
 , getDisplayEventSource
+, getKeyboardEventSource
 ) where
 
 #include <allegro5/allegro.h>
@@ -63,8 +64,9 @@ data UserEventDescriptorStruct deriving (Typeable)
 type UserEventDescriptor = Ptr (UserEventDescriptorStruct)
 
 data EventQueueStruct
-type EventQueue = Ptr (EventQueueStruct)
+type EventQueue = ForeignPtr (EventQueueStruct)
 
+-- ???: Do the pointer references here create memory leaks?
 type EventPtr = Ptr (Event)
 data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTimestamp :: Double }
            | JoystickAxisEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double
@@ -75,11 +77,11 @@ data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTime
            | JoystickButtonUpEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double
                                    , eventJoystickId :: Joystick, eventJoystickButton :: Int }
            | JoystickConfigurationEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double }
-           | KeyDownEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
+           | KeyDownEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
                           , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
-           | KeyUpEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
+           | KeyUpEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
                         , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
-           | KeyCharEvent { eventKeyboardSource :: Keyboard, eventTimestamp :: Double
+           | KeyCharEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
                           , eventKeycode :: Key, eventUnichar :: Char, eventModifiers :: Word
                           , eventRepeat :: Bool, eventDisplay :: Ptr (DisplayStruct) }
            | MouseAxesEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
@@ -125,73 +127,73 @@ data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTime
 instance Storable Event where
 	sizeOf _ = #{size ALLEGRO_EVENT}
 	alignment _ = alignment (undefined :: Int)
-	peek p = do
-		typ <- #{peek ALLEGRO_EVENT, any.type} p :: IO (Word)
-		parseEvent typ p
+	peek p = do typ <- #{peek ALLEGRO_EVENT, any.type} p :: IO (Word)
+		    parseEvent typ p
 	poke _ _ = undefined
 
 
 createEventQueue :: IO (EventQueue)
-createEventQueue = alCreateEventQueue
+createEventQueue = alCreateEventQueue >>= \q -> newForeignPtr alFinalizeEventQueue q 
 foreign import ccall "allegro5/allegro.h al_create_event_queue"
-	alCreateEventQueue :: IO (EventQueue)
+	alCreateEventQueue :: IO (Ptr (EventQueueStruct))
+foreign import ccall "allegro5/allegro.h &al_destroy_event_queue"
+	alFinalizeEventQueue :: FunPtr (Ptr (EventQueueStruct) -> IO ())
 
 destroyEventQueue :: EventQueue -> IO ()
-destroyEventQueue = alDestroyEventQueue
+destroyEventQueue q = withForeignPtr q alDestroyEventQueue
 foreign import ccall "allegro5/allegro.h al_destroy_event_queue"
-	alDestroyEventQueue :: EventQueue -> IO ()
+	alDestroyEventQueue :: Ptr (EventQueueStruct) -> IO ()
 
 registerEventSource :: EventQueue -> EventSource -> IO ()
-registerEventSource = alRegisterEventSource
+registerEventSource q source = withForeignPtr q $ \q' -> alRegisterEventSource q' source
 foreign import ccall "allegro5/allegro.h al_register_event_source"
-	alRegisterEventSource :: EventQueue -> EventSource -> IO ()
+	alRegisterEventSource :: Ptr (EventQueueStruct) -> EventSource -> IO ()
 
 unregisterEventSource :: EventQueue -> EventSource -> IO ()
-unregisterEventSource = alUnregisterEventSource
+unregisterEventSource q source = withForeignPtr q $ \q' -> alUnregisterEventSource q' source
 foreign import ccall "allegro5/allegro.h al_unregister_event_source"
-	alUnregisterEventSource :: EventQueue -> EventSource -> IO ()
+	alUnregisterEventSource :: Ptr (EventQueueStruct) -> EventSource -> IO ()
 
 isEventQueueEmpty :: EventQueue -> IO (Bool)
-isEventQueueEmpty queue = liftM toBool $ alIsEventQueueEmpty queue
+isEventQueueEmpty q = liftM toBool $ withForeignPtr q alIsEventQueueEmpty
 foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
-	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
+	alIsEventQueueEmpty :: Ptr (EventQueueStruct) -> IO (CInt)
 
--- TODO: test these event methods
 getNextEvent :: EventQueue -> IO (Maybe Event)
-getNextEvent queue = alloca $ \p -> do
-	success <- liftM toBool $ alGetNextEvent queue p
+getNextEvent q = alloca $ \p -> do
+	success <- liftM toBool $ withForeignPtr q $ \q' -> alGetNextEvent q' p
 	event <- peek p :: IO (Event)
 	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
-	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
+	alGetNextEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO (CInt)
 
 peekNextEvent :: EventQueue -> IO (Maybe Event)
-peekNextEvent queue = alloca $ \p -> do
-	success <- liftM toBool $ alPeekNextEvent queue p
+peekNextEvent q = alloca $ \p -> do
+	success <- liftM toBool $ withForeignPtr q $ \q' -> alPeekNextEvent q' p
 	event <- peek p :: IO (Event)
 	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_peek_next_event"
-	alPeekNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
+	alPeekNextEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO (CInt)
 
 dropNextEvent :: EventQueue -> IO (Bool)
-dropNextEvent queue = liftM toBool $ alDropNextEvent queue
+dropNextEvent q = liftM toBool $ withForeignPtr q alDropNextEvent
 foreign import ccall "allegro5/allegro.h al_drop_next_event"
-	alDropNextEvent :: EventQueue -> IO (CInt)
+	alDropNextEvent :: Ptr (EventQueueStruct) -> IO (CInt)
 
 flushEventQueue :: EventQueue -> IO ()
-flushEventQueue = alFlushEventQueue
+flushEventQueue q = withForeignPtr q alFlushEventQueue
 foreign import ccall "allegro5/allegro.h al_flush_event_queue"
-	alFlushEventQueue :: EventQueue -> IO ()
+	alFlushEventQueue :: Ptr (EventQueueStruct) -> IO ()
 
 waitForEvent :: EventQueue -> Bool -> IO (Maybe Event)
-waitForEvent queue ret = if ret
+waitForEvent q ret = if ret
 	then liftM Just $ alloca $ \p -> do
-		alWaitForEvent queue p
+		withForeignPtr q $ \q' -> alWaitForEvent q' p
 		event <- peek p :: IO (Event)
 		return event
-	else alWaitForEvent queue nullPtr >>= (\_ -> return Nothing)
+	else withForeignPtr q $ \q' -> alWaitForEvent q' nullPtr >>= (\_ -> return Nothing)
 foreign import ccall "allegro5/allegro.h al_wait_for_event"
-	alWaitForEvent :: EventQueue -> Ptr (Event) -> IO ()
+	alWaitForEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO ()
 
 -- This shit definitely needs to be fixed...
 --
@@ -248,10 +250,10 @@ parseJoystickEvent typ p = do
 
 parseKeyboardEvent :: Word -> Ptr Event -> IO (Event)
 parseKeyboardEvent typ p = do
-	eventKeyboardSource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Keyboard)
+	eventKeyboardSource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Ptr (KeyboardStruct))
 	eventTimestamp <- #{peek ALLEGRO_EVENT, any.timestamp} p :: IO (Double)
 	eventDisplay <- #{peek ALLEGRO_EVENT, keyboard.display} p :: IO (Ptr (DisplayStruct))
-	eventKeycode <- #{peek ALLEGRO_EVENT, keyboard.keycode} p :: IO (Key)
+	eventKeycode <- liftM Key (#{peek ALLEGRO_EVENT, keyboard.keycode} p :: IO (Int))
 	eventUnichar <- #{peek ALLEGRO_EVENT, keyboard.unichar} p :: IO (Char)
 	eventModifiers <- #{peek ALLEGRO_EVENT, keyboard.modifiers} p :: IO (Word)
 	eventRepeat <- #{peek ALLEGRO_EVENT, keyboard.repeat} p :: IO (Bool)
@@ -330,3 +332,8 @@ getDisplayEventSource :: Display -> IO (EventSource)
 getDisplayEventSource d = withForeignPtr d alGetDisplayEventSource
 foreign import ccall "allegro5/allegro.h al_get_display_event_source"
 	alGetDisplayEventSource :: Ptr (DisplayStruct) -> IO (EventSource)
+
+getKeyboardEventSource :: IO (EventSource)
+getKeyboardEventSource = alGetKeyboardEventSource
+foreign import ccall "allegro5/allegro.h al_get_keyboard_event_source"
+	alGetKeyboardEventSource :: IO (EventSource)
