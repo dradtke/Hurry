@@ -37,6 +37,7 @@ module Allegro.Event
 , destroyUserEventSource
 , getDisplayEventSource
 , getKeyboardEventSource
+, getMouseEventSource
 ) where
 
 #include <allegro5/allegro.h>
@@ -78,46 +79,46 @@ data Event = AnyEvent { eventType :: Word, eventSource :: EventSource, eventTime
                                    , eventJoystickId :: Joystick, eventJoystickButton :: Int }
            | JoystickConfigurationEvent { eventJoystickSource :: Joystick, eventTimestamp :: Double }
            | KeyDownEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
-                          , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
+                          , eventKeycode :: Key, eventDisplay :: Display }
            | KeyUpEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
-                        , eventKeycode :: Key, eventDisplay :: Ptr (DisplayStruct) }
+                        , eventKeycode :: Key, eventDisplay :: Display }
            | KeyCharEvent { eventKeyboardSource :: Ptr (KeyboardStruct), eventTimestamp :: Double
                           , eventKeycode :: Key, eventUnichar :: Char, eventModifiers :: Word
-                          , eventRepeat :: Bool, eventDisplay :: Ptr (DisplayStruct) }
+                          , eventRepeat :: Bool, eventDisplay :: Display }
            | MouseAxesEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                             , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
                             , eventDX :: Int, eventDY :: Int, eventDZ :: Int, eventDW :: Int
-                            , eventDisplay :: Ptr (DisplayStruct) }
+                            , eventDisplay :: Display }
            | MouseDownEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                             , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                            , eventButton :: Int, eventDisplay :: Ptr (DisplayStruct) }
+                            , eventButton :: Int, eventDisplay :: Display }
            | MouseUpEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                           , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                          , eventButton :: Int, eventDisplay :: Ptr (DisplayStruct) }
+                          , eventButton :: Int, eventDisplay :: Display }
            | MouseEnterDisplayEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                                     , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                                    , eventDisplay :: Ptr (DisplayStruct) }
+                                    , eventDisplay :: Display }
            | MouseLeaveDisplayEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                                     , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
-                                    , eventDisplay :: Ptr (DisplayStruct) }
+                                    , eventDisplay :: Display }
            | MouseWarpedEvent { eventMouseSource :: Mouse, eventTimestamp :: Double
                               , eventX :: Int, eventY :: Int, eventZ :: Int, eventW :: Int
                               , eventDX :: Int, eventDY :: Int, eventDZ :: Int, eventDW :: Int
-                              , eventDisplay :: Ptr (DisplayStruct) }
+                              , eventDisplay :: Display }
            | TimerEvent { eventTimerSource :: Timer, eventTimestamp :: Double
                         , eventTimerCount :: Word64 }
-           | DisplayExposeEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
+           | DisplayExposeEvent { eventDisplaySource :: Display, eventTimestamp :: Double
                                 , eventX :: Int, eventY :: Int, eventDisplayWidth :: Int
                                 , eventDisplayHeight :: Int }
-           | DisplayResizeEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
+           | DisplayResizeEvent { eventDisplaySource :: Display, eventTimestamp :: Double
                                 , eventX :: Int, eventY :: Int, eventDisplayWidth :: Int
                                 , eventDisplayHeight :: Int }
-           | DisplayCloseEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
-           | DisplayLostEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
-           | DisplayFoundEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
-           | DisplaySwitchInEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
-           | DisplaySwitchOutEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double }
-           | DisplayOrientationEvent { eventDisplaySource :: Ptr (DisplayStruct), eventTimestamp :: Double
+           | DisplayCloseEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
+           | DisplayLostEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
+           | DisplayFoundEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
+           | DisplaySwitchInEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
+           | DisplaySwitchOutEvent { eventDisplaySource :: Display, eventTimestamp :: Double }
+           | DisplayOrientationEvent { eventDisplaySource :: Display, eventTimestamp :: Double
                                      , eventDisplayOrientation :: Int }
            | UserEvent { eventType :: Word, eventSource :: EventSource
                       , eventTimestamp :: Double, eventData1 :: Ptr (), eventData2 :: Ptr ()
@@ -252,7 +253,7 @@ parseKeyboardEvent :: Word -> Ptr Event -> IO (Event)
 parseKeyboardEvent typ p = do
 	eventKeyboardSource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Ptr (KeyboardStruct))
 	eventTimestamp <- #{peek ALLEGRO_EVENT, any.timestamp} p :: IO (Double)
-	eventDisplay <- #{peek ALLEGRO_EVENT, keyboard.display} p :: IO (Ptr (DisplayStruct))
+	eventDisplay <- #{peek ALLEGRO_EVENT, keyboard.display} p :: IO (Display)
 	eventKeycode <- liftM Key (#{peek ALLEGRO_EVENT, keyboard.keycode} p :: IO (Int))
 	eventUnichar <- #{peek ALLEGRO_EVENT, keyboard.unichar} p :: IO (Char)
 	eventModifiers <- #{peek ALLEGRO_EVENT, keyboard.modifiers} p :: IO (Word)
@@ -276,7 +277,7 @@ parseMouseEvent typ p = do
 	eventDZ <- #{peek ALLEGRO_EVENT, mouse.dz} p :: IO (Int)
 	eventDW <- #{peek ALLEGRO_EVENT, mouse.dw} p :: IO (Int)
 	eventButton <- #{peek ALLEGRO_EVENT, mouse.button} p :: IO (Int)
-	eventDisplay <- #{peek ALLEGRO_EVENT, mouse.display} p :: IO (Ptr (DisplayStruct))
+	eventDisplay <- #{peek ALLEGRO_EVENT, mouse.display} p :: IO (Display)
 	return $ case typ of
 		20 -> MouseAxesEvent {..}
 		21 -> MouseDownEvent {..}
@@ -297,7 +298,7 @@ parseTimerEvent typ p = do
 
 parseDisplayEvent :: Word -> Ptr Event -> IO (Event)
 parseDisplayEvent typ p = do
-	eventDisplaySource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Ptr (DisplayStruct))
+	eventDisplaySource <- #{peek ALLEGRO_EVENT, any.source} p :: IO (Display)
 	eventTimestamp <- #{peek ALLEGRO_EVENT, any.timestamp} p :: IO (Double)
 	eventX <- #{peek ALLEGRO_EVENT, display.x} p :: IO (Int)
 	eventY <- #{peek ALLEGRO_EVENT, display.y} p :: IO (Int)
@@ -329,11 +330,16 @@ parseUserEvent typ p = do
 -- Get event sources
 
 getDisplayEventSource :: Display -> IO (EventSource)
-getDisplayEventSource d = withForeignPtr d alGetDisplayEventSource
+getDisplayEventSource = alGetDisplayEventSource
 foreign import ccall "allegro5/allegro.h al_get_display_event_source"
-	alGetDisplayEventSource :: Ptr (DisplayStruct) -> IO (EventSource)
+	alGetDisplayEventSource :: Display -> IO (EventSource)
 
 getKeyboardEventSource :: IO (EventSource)
 getKeyboardEventSource = alGetKeyboardEventSource
 foreign import ccall "allegro5/allegro.h al_get_keyboard_event_source"
 	alGetKeyboardEventSource :: IO (EventSource)
+
+getMouseEventSource :: IO (EventSource)
+getMouseEventSource = alGetMouseEventSource
+foreign import ccall "allegro5/allegro.h al_get_mouse_event_source"
+	alGetMouseEventSource :: IO (EventSource)

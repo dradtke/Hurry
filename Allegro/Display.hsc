@@ -30,14 +30,13 @@ import Data.Data
 import Data.List
 import Foreign.C.Types
 import Foreign.C.String
-import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
 
 data DisplayStruct deriving (Typeable)
-type Display = ForeignPtr (DisplayStruct)
+type Display = Ptr (DisplayStruct)
 
 newtype DisplayFlag = DisplayFlag { unDisplayFlag :: CInt }
 #{enum DisplayFlag, DisplayFlag
@@ -100,18 +99,14 @@ newtype DisplayOption = DisplayOption { unDisplayOption :: CInt }
  }
 
 createDisplay :: Int -> Int -> IO (Display)
-createDisplay w h = do
-	d <- alCreateDisplay (toEnum w) (toEnum h)
-	newForeignPtr alFinalizeDisplay d
+createDisplay w h = alCreateDisplay (toEnum w) (toEnum h)
 foreign import ccall "allegro5/allegro.h al_create_display"
-	alCreateDisplay :: CInt -> CInt -> IO (Ptr (DisplayStruct))
-foreign import ccall "allegro5/allegro.h &al_destroy_display"
-	alFinalizeDisplay :: FunPtr (Ptr (DisplayStruct) -> IO ())
+	alCreateDisplay :: CInt -> CInt -> IO (Display)
 
 destroyDisplay :: Display -> IO ()
-destroyDisplay d = withForeignPtr d alDestroyDisplay
+destroyDisplay = alDestroyDisplay
 foreign import ccall "allegro5/allegro.h al_destroy_display"
-	alDestroyDisplay :: Ptr (DisplayStruct) -> IO ()
+	alDestroyDisplay :: Display -> IO ()
 
 getNewDisplayFlags :: IO ([DisplayFlag])
 getNewDisplayFlags = do
@@ -170,9 +165,9 @@ foreign import ccall "allegro5/allegro.h al_set_new_window_position"
 	alSetNewWindowPosition :: CInt -> CInt -> IO ()
 
 acknowledgeResize :: Display -> IO (Bool)
-acknowledgeResize d = liftM toBool $ withForeignPtr d alAcknowledgeResize
+acknowledgeResize d = liftM toBool $ alAcknowledgeResize d
 foreign import ccall "allegro5/allegro.h al_acknowledge_resize"
-	alAcknowledgeResize :: Ptr (DisplayStruct) -> IO (CInt)
+	alAcknowledgeResize :: Display -> IO (CInt)
 
 flipDisplay :: IO ()
 flipDisplay = alFlipDisplay
@@ -180,39 +175,39 @@ foreign import ccall "allegro5/allegro.h al_flip_display"
 	alFlipDisplay :: IO ()
 
 getBackbuffer :: Display -> IO (Bitmap)
-getBackbuffer d = withForeignPtr d alGetBackbuffer
+getBackbuffer = alGetBackbuffer
 foreign import ccall "allegro5/allegro.h al_get_backbuffer"
-	alGetBackbuffer :: Ptr (DisplayStruct) -> IO (Bitmap)
+	alGetBackbuffer :: Display -> IO (Bitmap)
 
 getDisplayFlags :: Display -> IO ([DisplayFlag])
 getDisplayFlags d = do
-	flags <- withForeignPtr d alGetDisplayFlags
+	flags <- alGetDisplayFlags d
 	return $ filter (\x -> toBool $ (.&.) (unDisplayFlag x) flags) allDisplayFlags
 foreign import ccall "allegro5/allegro.h al_get_display_flags"
-	alGetDisplayFlags :: Ptr (DisplayStruct) -> IO (CInt)
+	alGetDisplayFlags :: Display -> IO (CInt)
 
 getDisplayHeight :: Display -> IO (Int)
-getDisplayHeight d = liftM fromEnum $ withForeignPtr d alGetDisplayHeight
+getDisplayHeight d = liftM fromEnum $ alGetDisplayHeight d
 foreign import ccall "allegro5/allegro.h al_get_display_height"
-	alGetDisplayHeight :: Ptr (DisplayStruct) -> IO (CInt)
+	alGetDisplayHeight :: Display -> IO (CInt)
 
 getDisplayRefreshRate :: Display -> IO (Int)
-getDisplayRefreshRate d = liftM fromEnum $ withForeignPtr d alGetDisplayRefreshRate
+getDisplayRefreshRate d = liftM fromEnum $ alGetDisplayRefreshRate d
 foreign import ccall "allegro5/allegro.h al_get_display_refresh_rate"
-	alGetDisplayRefreshRate :: Ptr (DisplayStruct) -> IO (CInt)
+	alGetDisplayRefreshRate :: Display -> IO (CInt)
 
 getDisplayWidth :: Display -> IO (Int)
-getDisplayWidth d = liftM fromEnum $ withForeignPtr d alGetDisplayWidth
+getDisplayWidth d = liftM fromEnum $ alGetDisplayWidth d
 foreign import ccall "allegro5/allegro.h al_get_display_width"
-	alGetDisplayWidth :: Ptr (DisplayStruct) -> IO (CInt)
+	alGetDisplayWidth :: Display -> IO (CInt)
 
 getWindowPosition :: Display -> IO ((Int,Int))
 getWindowPosition d = alloca $ \px -> alloca $ \py -> do
-	withForeignPtr d (\d' -> alGetWindowPosition d' px py)
+	alGetWindowPosition d px py
 	x <- peek px :: IO (CInt); y <- peek py :: IO (CInt)
 	return (fromEnum x, fromEnum y)
 foreign import ccall "allegro5/allegro.h al_get_window_position"
-	alGetWindowPosition :: Ptr (DisplayStruct) -> Ptr (CInt) -> Ptr (CInt) -> IO ()
+	alGetWindowPosition :: Display -> Ptr (CInt) -> Ptr (CInt) -> IO ()
 
 inhibitScreensaver :: Bool -> IO (Bool)
 inhibitScreensaver inhibit = liftM toBool $ alInhibitScreensaver inhibit'
@@ -221,39 +216,35 @@ foreign import ccall "allegro5/allegro.h al_inhibit_screensaver"
 	alInhibitScreensaver :: CInt -> IO (CInt)
 
 resizeDisplay :: Display -> Int -> Int -> IO (Bool)
-resizeDisplay d w h = liftM toBool $ withForeignPtr d $ \d' ->
-	alResizeDisplay d' (toEnum w) (toEnum h)
+resizeDisplay d w h = liftM toBool $ alResizeDisplay d (toEnum w) (toEnum h)
 foreign import ccall "allegro5/allegro.h al_resize_display"
-	alResizeDisplay :: Ptr (DisplayStruct) -> CInt -> CInt -> IO (CInt)
+	alResizeDisplay :: Display -> CInt -> CInt -> IO (CInt)
 
 setDisplayIcon :: Display -> Bitmap -> IO ()
-setDisplayIcon d bitmap = withForeignPtr d (\d' -> alSetDisplayIcon d' bitmap)
+setDisplayIcon = alSetDisplayIcon
 foreign import ccall "allegro5/allegro.h al_set_display_icon"
-	alSetDisplayIcon :: Ptr (DisplayStruct) -> Bitmap -> IO ()
+	alSetDisplayIcon :: Display -> Bitmap -> IO ()
 
 getDisplayOption :: Display -> DisplayOption -> IO (Int)
-getDisplayOption d option = liftM fromEnum $ withForeignPtr d $ \d' ->
-	alGetDisplayOption d' option
+getDisplayOption d option = liftM fromEnum $ alGetDisplayOption d option
 foreign import ccall "allegro5/allegro.h al_get_display_option"
-	alGetDisplayOption :: Ptr (DisplayStruct) -> DisplayOption -> IO (CInt)
+	alGetDisplayOption :: Display -> DisplayOption -> IO (CInt)
 
 setWindowPosition :: Display -> Int -> Int -> IO ()
-setWindowPosition d x y = withForeignPtr d $ \d' ->
-	alSetWindowPosition d' (toEnum x) (toEnum y)
+setWindowPosition d x y = alSetWindowPosition d (toEnum x) (toEnum y)
 foreign import ccall "allegro5/allegro.h al_set_window_position"
-	alSetWindowPosition :: Ptr (DisplayStruct) -> CInt -> CInt -> IO ()
+	alSetWindowPosition :: Display -> CInt -> CInt -> IO ()
 
 setWindowTitle :: Display -> String -> IO ()
-setWindowTitle d title = withCString title $ \title' -> withForeignPtr d $ \d' ->
-	alSetWindowTitle d' title'
+setWindowTitle d title = withCString title $ \title' -> alSetWindowTitle d title'
 foreign import ccall "allegro5/allegro.h al_set_window_title"
-	alSetWindowTitle :: Ptr (DisplayStruct) -> CString -> IO ()
+	alSetWindowTitle :: Display -> CString -> IO ()
 
 toggleDisplayFlag :: Display -> DisplayFlag -> Bool -> IO (Bool)
-toggleDisplayFlag d flag onoff = liftM toBool $ withForeignPtr d $ \d' ->
-	alToggleDisplayFlag d' flag (fromBool onoff :: CInt)
+toggleDisplayFlag d flag onoff = liftM toBool $ alToggleDisplayFlag d flag onoff'
+	where onoff' = fromBool onoff :: CInt
 foreign import ccall "allegro5/allegro.h al_toggle_display_flag"
-	alToggleDisplayFlag :: Ptr (DisplayStruct) -> DisplayFlag -> CInt -> IO (CInt)
+	alToggleDisplayFlag :: Display -> DisplayFlag -> CInt -> IO (CInt)
 
 updateDisplayRegion :: Int -> Int -> Int -> Int -> IO ()
 updateDisplayRegion x y w h =

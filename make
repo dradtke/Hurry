@@ -5,10 +5,10 @@
 #
 
 if [[ $1 = "clean" ]]; then
-	rm -f *.{o,hi} Allegro/*.{o,hi} c/*.o Main Allegro/Event.hs Allegro/Display.hs Allegro/Keyboard.hs
+	rm -f *.{o,hi} Allegro/*.{o,hi} c/*.o Main Allegro/{Event,Display,Keyboard,Mouse}.hs
 	echo "  Clean as a jiffy, suh."
 	exit 0
 fi
 
 # the compilation command
-hsc2hs Allegro/*.hsc && ghc -XRecordWildCards --make *.hs c/al-wrapper.c -lallegro
+hsc2hs Allegro/*.hsc && ghc -debug -XRecordWildCards --make *.hs c/al-wrapper.c -lallegro
