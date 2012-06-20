@@ -5,7 +5,7 @@
 #
 
 if [[ $1 = "clean" ]]; then
-	rm -f *.{o,hi} Allegro/*.{o,hi} c/*.o Main Allegro/{Event,Display,Keyboard,Mouse}.hs
+	rm -f *.{o,hi} Allegro/*.{o,hi} c/*.o Main Allegro/{Event,Display,Keyboard,Mouse,Graphics}.hs
 	echo "  Clean as a jiffy, suh."
 	exit 0
 fi
