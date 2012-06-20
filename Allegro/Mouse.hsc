@@ -24,12 +24,17 @@ module Allegro.Mouse
 , uninstallMouse
 , getMouseNumAxes
 , getMouseNumButtons
+, getMouseAxis
+, getMousePosition
+, getMouseWheelPosition
 ) where
 
 #include <allegro5/allegro.h>
 
 import Control.Monad
+import Data.Bits
 import Data.Data
+import Data.Word
 import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Marshal.Alloc
@@ -37,8 +42,34 @@ import Foreign.Marshal.Utils
 import Foreign.Ptr
 import Foreign.Storable
 
-data MouseStruct deriving (Typeable)
+data MouseStruct = MouseStruct { mouseX :: Int
+                               , mouseY :: Int
+                               , mouseW :: Int
+                               , mouseZ :: Int
+                               , mouseButtons :: [MouseButton]
+                               } deriving (Typeable)
 type Mouse = Ptr (MouseStruct)
+
+newtype MouseButton = MouseButton { unMouseButton :: Int } deriving (Eq, Show, Typeable, Data)
+#{enum MouseButton, MouseButton
+ , mouseLeft = 1
+ , mouseRight = 2
+ , mouseMiddle = 4
+ }
+
+allMouseButtons :: [MouseButton]
+allMouseButtons = [mouseLeft, mouseRight, mouseMiddle]
+
+instance Storable MouseStruct where
+	sizeOf _ = #{size ALLEGRO_MOUSE_STATE}
+	alignment _ = alignment (undefined :: Int)
+	peek p = do mouseX <- liftM fromEnum (#{peek ALLEGRO_MOUSE_STATE, x} p :: IO (CInt))
+                    mouseY <- liftM fromEnum (#{peek ALLEGRO_MOUSE_STATE, y} p :: IO (CInt))
+                    mouseW <- liftM fromEnum (#{peek ALLEGRO_MOUSE_STATE, w} p :: IO (CInt))
+                    mouseZ <- liftM fromEnum (#{peek ALLEGRO_MOUSE_STATE, z} p :: IO (CInt))
+                    btns <- liftM fromEnum (#{peek ALLEGRO_MOUSE_STATE, buttons} p :: IO (CInt))
+                    let mouseButtons = filter (\x -> toBool $ (.&.) btns $ unMouseButton x) allMouseButtons
+                    return MouseStruct {..}
 
 installMouse :: IO (Bool)
 installMouse = liftM toBool alInstallMouse
@@ -64,3 +95,27 @@ getMouseNumButtons :: IO (Int)
 getMouseNumButtons = liftM fromEnum alGetMouseNumButtons
 foreign import ccall "allegro5/allegro.h al_get_mouse_num_buttons"
 	alGetMouseNumButtons :: IO (CInt)
+
+-- No need to expose this, it's only used internally.
+foreign import ccall "allegro5/allegro.h al_get_mouse_state"
+	alGetMouseState :: Mouse -> IO ()
+
+-- TODO: create a data type for the different axes
+getMouseAxis :: Int -> IO (Int)
+getMouseAxis axis = alloca $ \p -> do
+	alGetMouseState p
+	liftM fromEnum $ alGetMouseStateAxis p (toEnum axis)
+foreign import ccall "allegro5/allegro.h al_get_mouse_state_axis"
+	alGetMouseStateAxis :: Mouse -> CInt -> IO (CInt)
+
+getMousePosition :: IO ((Int,Int))
+getMousePosition = alloca $ \p -> do
+	alGetMouseState p
+	m <- peek p
+	return (mouseX m, mouseY m)
+
+getMouseWheelPosition :: IO ((Int,Int))
+getMouseWheelPosition = alloca $ \p -> do
+	alGetMouseState p
+	m <- peek p
+	return (mouseW m, mouseZ m)

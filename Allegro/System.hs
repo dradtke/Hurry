@@ -42,7 +42,7 @@ initAllegro :: IO ()
 initAllegro = liftM toBool alInit >>= \success -> if success
 	then return ()
 	else error $ "Failed to initialize Allegro!"
-foreign import ccall "c/al-wrapper.h wal_init"
+foreign import ccall "c/wrapper.h wal_init"
 	alInit :: IO (CInt)
 
 -- TODO: need to figure out how to pass in a function pointer...

@@ -65,7 +65,7 @@ data UserEventDescriptorStruct deriving (Typeable)
 type UserEventDescriptor = Ptr (UserEventDescriptorStruct)
 
 data EventQueueStruct
-type EventQueue = ForeignPtr (EventQueueStruct)
+type EventQueue = Ptr (EventQueueStruct)
 
 -- ???: Do the pointer references here create memory leaks?
 type EventPtr = Ptr (Event)
@@ -134,65 +134,63 @@ instance Storable Event where
 
 
 createEventQueue :: IO (EventQueue)
-createEventQueue = alCreateEventQueue >>= \q -> newForeignPtr alFinalizeEventQueue q 
+createEventQueue = alCreateEventQueue
 foreign import ccall "allegro5/allegro.h al_create_event_queue"
-	alCreateEventQueue :: IO (Ptr (EventQueueStruct))
-foreign import ccall "allegro5/allegro.h &al_destroy_event_queue"
-	alFinalizeEventQueue :: FunPtr (Ptr (EventQueueStruct) -> IO ())
+	alCreateEventQueue :: IO (EventQueue)
 
 destroyEventQueue :: EventQueue -> IO ()
-destroyEventQueue q = withForeignPtr q alDestroyEventQueue
+destroyEventQueue = alDestroyEventQueue
 foreign import ccall "allegro5/allegro.h al_destroy_event_queue"
-	alDestroyEventQueue :: Ptr (EventQueueStruct) -> IO ()
+	alDestroyEventQueue :: EventQueue -> IO ()
 
 registerEventSource :: EventQueue -> EventSource -> IO ()
-registerEventSource q source = withForeignPtr q $ \q' -> alRegisterEventSource q' source
+registerEventSource = alRegisterEventSource
 foreign import ccall "allegro5/allegro.h al_register_event_source"
-	alRegisterEventSource :: Ptr (EventQueueStruct) -> EventSource -> IO ()
+	alRegisterEventSource :: EventQueue -> EventSource -> IO ()
 
 unregisterEventSource :: EventQueue -> EventSource -> IO ()
-unregisterEventSource q source = withForeignPtr q $ \q' -> alUnregisterEventSource q' source
+unregisterEventSource = alUnregisterEventSource
 foreign import ccall "allegro5/allegro.h al_unregister_event_source"
-	alUnregisterEventSource :: Ptr (EventQueueStruct) -> EventSource -> IO ()
+	alUnregisterEventSource :: EventQueue -> EventSource -> IO ()
 
 isEventQueueEmpty :: EventQueue -> IO (Bool)
-isEventQueueEmpty q = liftM toBool $ withForeignPtr q alIsEventQueueEmpty
+isEventQueueEmpty q = liftM toBool $ alIsEventQueueEmpty q
 foreign import ccall "allegro5/allegro.h al_is_event_queue_empty"
-	alIsEventQueueEmpty :: Ptr (EventQueueStruct) -> IO (CInt)
+	alIsEventQueueEmpty :: EventQueue -> IO (CInt)
 
 getNextEvent :: EventQueue -> IO (Maybe Event)
 getNextEvent q = alloca $ \p -> do
-	success <- liftM toBool $ withForeignPtr q $ \q' -> alGetNextEvent q' p
+	success <- liftM toBool $ alGetNextEvent q p
 	event <- peek p :: IO (Event)
 	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_get_next_event"
-	alGetNextEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO (CInt)
+	alGetNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
 peekNextEvent :: EventQueue -> IO (Maybe Event)
 peekNextEvent q = alloca $ \p -> do
-	success <- liftM toBool $ withForeignPtr q $ \q' -> alPeekNextEvent q' p
+	success <- liftM toBool $ alPeekNextEvent q p
 	event <- peek p :: IO (Event)
 	return $ if success then Just event else Nothing
 foreign import ccall "allegro5/allegro.h al_peek_next_event"
-	alPeekNextEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO (CInt)
+	alPeekNextEvent :: EventQueue -> Ptr (Event) -> IO (CInt)
 
 dropNextEvent :: EventQueue -> IO (Bool)
-dropNextEvent q = liftM toBool $ withForeignPtr q alDropNextEvent
+dropNextEvent q = liftM toBool $ alDropNextEvent q
 foreign import ccall "allegro5/allegro.h al_drop_next_event"
-	alDropNextEvent :: Ptr (EventQueueStruct) -> IO (CInt)
+	alDropNextEvent :: EventQueue -> IO (CInt)
 
 flushEventQueue :: EventQueue -> IO ()
-flushEventQueue q = withForeignPtr q alFlushEventQueue
+flushEventQueue = alFlushEventQueue
 foreign import ccall "allegro5/allegro.h al_flush_event_queue"
-	alFlushEventQueue :: Ptr (EventQueueStruct) -> IO ()
+	alFlushEventQueue :: EventQueue -> IO ()
 
 waitForEvent :: EventQueue -> Bool -> IO (Maybe Event)
 waitForEvent q ret = if ret
 	then liftM Just $ alloca $ \p -> do
-		withForeignPtr q $ \q' -> alWaitForEvent q' p
+		alWaitForEvent q p
 		event <- peek p :: IO (Event)
 		return event
-	else withForeignPtr q $ \q' -> alWaitForEvent q' nullPtr >>= (\_ -> return Nothing)
+	else alWaitForEvent q nullPtr >>= (\_ -> return Nothing)
 foreign import ccall "allegro5/allegro.h al_wait_for_event"
 	alWaitForEvent :: Ptr (EventQueueStruct) -> Ptr (Event) -> IO ()
 

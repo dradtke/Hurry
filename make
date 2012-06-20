@@ -11,4 +11,4 @@ if [[ $1 = "clean" ]]; then
 fi
 
 # the compilation command
-hsc2hs Allegro/*.hsc && ghc -debug -XRecordWildCards --make *.hs c/al-wrapper.c -lallegro
+hsc2hs Allegro/*.hsc && ghc -debug -XRecordWildCards --make *.hs c/*.c -lallegro
