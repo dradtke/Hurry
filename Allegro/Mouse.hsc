@@ -119,3 +119,10 @@ getMouseWheelPosition = alloca $ \p -> do
 	alGetMouseState p
 	m <- peek p
 	return (mouseW m, mouseZ m)
+
+isMouseButtonDown :: MouseButton -> IO (Bool)
+isMouseButtonDown btn = alloca $ \p -> do
+	alGetMouseState p
+	liftM toBool $ alMouseButtonDown p $ toEnum $ unMouseButton btn
+foreign import ccall "allegro5/allegro.h al_mouse_button_down"
+	alMouseButtonDown :: Mouse -> CInt -> IO (CInt)
