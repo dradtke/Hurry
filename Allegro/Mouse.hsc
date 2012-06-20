@@ -26,10 +26,17 @@ module Allegro.Mouse
 , getMouseNumButtons
 , getMouseAxis
 , getMousePosition
-, getMouseWheelPosition
+, getMouseZ
+, getMouseW
+, setMousePosition
+, setMouseZ
+, setMouseW
+, setMouseAxis
 ) where
 
 #include <allegro5/allegro.h>
+
+import Allegro.Display
 
 import Control.Monad
 import Data.Bits
@@ -114,11 +121,17 @@ getMousePosition = alloca $ \p -> do
 	m <- peek p
 	return (mouseX m, mouseY m)
 
-getMouseWheelPosition :: IO ((Int,Int))
-getMouseWheelPosition = alloca $ \p -> do
+getMouseZ :: IO (Int)
+getMouseZ = alloca $ \p -> do
 	alGetMouseState p
 	m <- peek p
-	return (mouseW m, mouseZ m)
+	return $ mouseZ m
+
+getMouseW :: IO (Int)
+getMouseW = alloca $ \p -> do
+	alGetMouseState p
+	m <- peek p
+	return $ mouseW m
 
 isMouseButtonDown :: MouseButton -> IO (Bool)
 isMouseButtonDown btn = alloca $ \p -> do
@@ -126,3 +139,26 @@ isMouseButtonDown btn = alloca $ \p -> do
 	liftM toBool $ alMouseButtonDown p $ toEnum $ unMouseButton btn
 foreign import ccall "allegro5/allegro.h al_mouse_button_down"
 	alMouseButtonDown :: Mouse -> CInt -> IO (CInt)
+
+setMousePosition :: Display -> (Int,Int) -> IO (Bool)
+setMousePosition d (x,y) = liftM toBool $ alSetMouseXY d (toEnum x) (toEnum y)
+foreign import ccall "allegro5/allegro.h al_set_mouse_xy"
+	alSetMouseXY :: Display -> CInt -> CInt -> IO (CInt)
+
+setMouseZ :: Int -> IO (Bool)
+setMouseZ z = liftM toBool $ alSetMouseZ (toEnum z)
+foreign import ccall "allegro5/allegro.h al_set_mouse_z"
+	alSetMouseZ :: CInt -> IO (CInt)
+
+setMouseW :: Int -> IO (Bool)
+setMouseW w = liftM toBool $ alSetMouseW (toEnum w)
+foreign import ccall "allegro5/allegro.h al_set_mouse_w"
+	alSetMouseW :: CInt -> IO (CInt)
+
+-- TODO: is there a datatype for axes yet?
+setMouseAxis :: Int -> Int -> IO (Bool)
+setMouseAxis axis value = liftM toBool $ alSetMouseAxis (toEnum axis) (toEnum value)
+foreign import ccall "allegro5/allegro.h al_set_mouse_axis"
+	alSetMouseAxis :: CInt -> CInt -> IO (CInt)
+
+-- TODO: mouse cursors
